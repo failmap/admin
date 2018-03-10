@@ -6,12 +6,12 @@ import time
 import warnings
 from uuid import uuid1
 
-import dramatiq
 from django.conf import settings
 from django.core.management import call_command
 from django.core.management.commands.runserver import Command as RunserverCommand
 from retry import retry
 
+import dramatiq
 import failmap.dramatiq
 from failmap.celery import app
 
@@ -132,7 +132,6 @@ class Command(RunserverCommand):
             self.processes.append(broker_process)
             log.info('Starting workers')
             self.processes.append(start_worker(broker_port, options['verbosity'] < 2))
-            self.processes.append(start_drama_worker(broker_port, options['verbosity'] < 2))
 
             # set celery broker url
             settings.CELERY_BROKER_URL = 'redis://localhost:%d/0' % broker_port
@@ -145,11 +144,15 @@ class Command(RunserverCommand):
                 if app.control.ping(timeout=0.5):
                     break
 
+            self.processes.append(start_drama_worker(broker_port, options['verbosity'] < 2))
+
             # required to make this dramatiq task pickup new broker settings in this instance
             failmap.dramatiq.setbroker()
             broker = dramatiq.get_broker()
 
             # wait for dramatiq worker to be ready
+            # message = failmap.dramatiq.ping.send()
+            # print(message)
             message = dramatiq.Message(
                 queue_name='default',
                 actor_name="ping",

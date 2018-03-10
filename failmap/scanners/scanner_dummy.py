@@ -11,7 +11,7 @@ import time
 from django.conf import settings
 
 from failmap.celery import ParentFailed
-from failmap.dramatiq import dramatiq
+from failmap.dramatiq import actor, dramatiq
 from failmap.organizations.models import Organization, Url
 from failmap.scanners.endpoint_scan_manager import EndpointScanManager
 
@@ -79,7 +79,7 @@ def compose_task(
     return task
 
 
-@dramatiq.actor(queue_name='storage', store_results=True)
+@actor(queue_name='storage', store_results=True)
 def store_dummy(endpoint, result):
     """
 
@@ -116,7 +116,7 @@ class SomeError(Exception):
     """Just some expectable error."""
 
 
-@dramatiq.actor(queue_name='scanners', store_results=True)
+@actor(queue_name='scanners', store_results=True)
 def scan_dummy(uri_url):
     """
 

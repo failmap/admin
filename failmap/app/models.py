@@ -6,10 +6,12 @@ import importlib
 from typing import Union
 
 import celery
-import dramatiq
 from django.contrib.auth.models import User
 from django.db import models
 from jsonfield import JSONField
+
+import dramatiq
+from failmap.dramatiq import actor
 
 from ..app.common import ResultEncoder
 from ..celery import app
@@ -52,14 +54,31 @@ class Job(models.Model):
             job.result_id = result_id.id
             job.save(update_fields=['result_id'])
         else:
-            task.run()
+            message = dramatiq.pipeline([
+                task,
+                cls.drama_store_result.message(job_id=job.id)]
+            ).run()
+            # store the task async result ID for reference
+            job.result_id = message.message_id
+            job.save(update_fields=['result_id'])
 
         return job
 
-    @staticmethod
+    @classmethod
     @app.task(queue='storage')
-    def store_result(result, job_id=None):
+    def store_result(cls, result, job_id=None):
         """Celery task to store result of wrapped task after it has completed."""
+        return cls._store_result(result, job_id)
+
+    @classmethod
+    @actor(queue_name='storage')
+    def drama_store_result(cls, result, job_id=None):
+        """Dramatiq task to store result of wrapped task after it has completed."""
+        return cls._store_result(result, job_id)
+
+    @staticmethod
+    def _store_result(result, job_id=None):
+        """Generic part for storing task result."""
         job = Job.objects.get(id=job_id)
         if not result:
             result = '-- task generated no result object --'

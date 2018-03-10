@@ -5,6 +5,8 @@ import os
 
 from django_dramatiq.management.commands.rundramatiq import Command as RundramatiqCommand
 
+from failmap.dramatiq import setbroker
+
 log = logging.getLogger(__name__)
 
 
@@ -31,4 +33,5 @@ class Command(RundramatiqCommand):
         broker = kwargs['broker']
         log.info("Setting broker to: %s", broker)
         os.environ["BROKER"] = broker
+        setbroker()
         super().handle(*args, **kwargs)

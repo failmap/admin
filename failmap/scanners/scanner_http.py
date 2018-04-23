@@ -34,7 +34,7 @@ import pytz
 import requests
 # suppress InsecureRequestWarning, we do those request on purpose.
 import urllib3
-from celery import Task, chain, group
+from celery import Task, group
 from django.conf import settings
 from requests import ConnectTimeout, HTTPError, ReadTimeout, Timeout
 from requests.exceptions import ConnectionError
@@ -50,8 +50,8 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 logger = logging.getLogger(__package__)
 
 # don't contact http/443 and https/80. You can, but that is 99.99 waste data.
-STANDARD_HTTP_PORTS = [80, 8008, 8080]
-STANDARD_HTTPS_PORTS = [443, 8443]
+STANDARD_HTTP_PORTS = [80, 8008]  # , 8080]
+STANDARD_HTTPS_PORTS = []  # [443, 8443]
 
 # Discover Endpoints generic task
 
@@ -93,11 +93,11 @@ def compose_task(
     # opening non-tls port 443 and tls port 80. We're not doing that anymore.
     for port in STANDARD_HTTP_PORTS:
         for url in urls:
-            tasks.append(resolve_and_scan_tasks(protocol="http", url=url, port=port))
+            tasks += resolve_and_scan_tasks(protocol="http", url=url, port=port)
 
     for port in STANDARD_HTTPS_PORTS:
         for url in urls:
-            tasks.append(resolve_and_scan_tasks(protocol="https", url=url, port=port))
+            tasks += resolve_and_scan_tasks(protocol="https", url=url, port=port)
 
     return group(tasks)
 
@@ -290,18 +290,12 @@ def resolve_and_scan(protocol: str, url: Url, port: int):
 def resolve_and_scan_tasks(protocol: str, url: Url, port: int):
 
     # todo: give ips als argument in kill an revive.
-    task = group(
-        chain(
-            get_ips.si(url.url),
-            group(store_url_ips_task.s(url),
-                  kill_url_task.s(url),
-                  revive_url_task.s(url),
-                  ),
-        ),
-        (get_ips.si(url.url) | can_connect_ips.s(protocol, url, port, 4) | connect_result.s(protocol, url, port, 4)),
-        (get_ips.si(url.url) | can_connect_ips.s(protocol, url, port, 6) | connect_result.s(protocol, url, port, 6)),
+    tasks = (
+        get_ips.si(url.url) | group(store_url_ips_task.s(url), kill_url_task.s(url), revive_url_task.s(url)),
+        get_ips.si(url.url) | can_connect_ips.s(protocol, url, port, 4) | connect_result.s(protocol, url, port, 4),
+        get_ips.si(url.url) | can_connect_ips.s(protocol, url, port, 6) | connect_result.s(protocol, url, port, 6),
     )
-    return task
+    return tasks
 
 
 @app.task(queue="scanners")

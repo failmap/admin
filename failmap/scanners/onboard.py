@@ -43,32 +43,52 @@ def compose_task(
         task_str = str(explore)
         task_str = task_str.replace("), group(", "), \n group(")
         task_str = task_str.replace("|", "\n|")
+        print()
+        print()
         print(task_str)
-
+        print()
+        print()
+        # print('crawl', crawl, bool(crawl))
         if crawl:
             tasks.append(explore | crawl | finish_onboarding.si(url) | scan_tasks.si(url))
         else:
-            # scan task may have no ednpoints, we're not going to give exceptions anymore...
-            tasks.append(explore | (dummy_task.si() | finish_onboarding_mutable.s(url) | scan_tasks.si(url)))
+            # scan task may have no endpoints, we're not going to give exceptions anymore...
+
+            # replicate the behaviour of scanner_http resolve_and_scan_tasks tasks
+            explore = group(
+                dummy_task.si() | group(dummy_task.s(), dummy_task.s(), dummy_task.s()),
+                dummy_task.si() | dummy_task.s() | dummy_task.s(),
+                dummy_task.si() | dummy_task.s() | dummy_task.s(),
+                # adding a fourth task to the group causes a hang
+                dummy_task.si() | dummy_task.s() | dummy_task.s(),
+
+
+                # don't even think of adding even more
+                # dummy_task.si() | group(dummy_task.si(), dummy_task.s(), dummy_task.s()),
+                # dummy_task.si() | dummy_task.s() | dummy_task.s(),
+                # dummy_task.si() | dummy_task.s() | dummy_task.s(),
+            )
+            tasks.append(explore | finish_onboarding_mutable.s(url) | scan_tasks.si(url))
 
     task = group(tasks)
 
     # Trying to make the output gibberish more readable.
-    task_str = str(tasks)
-    task_str = task_str.replace("), group(", "), \n group(")
-    task_str = task_str.replace("|", "\n|")
-    print(task_str)
+    # task_str = str(task)
+    # task_str = task_str.replace("), group(", "), \n group(")
+    # task_str = task_str.replace("|", "\n|")
+    # print(task_str)
 
     # keeping a raw version
-    # print("Tasks:")
-    # print(task)
+    print("Tasks:")
+    print(task)
 
     return task
 
 
 @app.task(queue='storage')
-def dummy_task():
-    log.error("Nothing is going wrong here...")
+def dummy_task(*args, **kwargs):
+    pass
+    # log.error("Nothing is going wrong here...")
 
 
 def compose_explore_tasks(url):

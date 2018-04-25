@@ -34,6 +34,12 @@ failmap devserver --no-backend
 
 """
 
+LOGLEVEL = {
+    1: 'error',
+    2: 'info',
+    3: 'debug'
+}
+
 
 def start_borker(uuid):
 
@@ -52,12 +58,14 @@ def start_borker(uuid):
     return borker_process, port
 
 
-def start_worker(broker_port, silent=True):
+def start_worker(broker_port, verbosity=2):
+    loglevel = LOGLEVEL[verbosity]
+
     watchdog = ('watchmedo auto-restart --directory={} --pattern=*.py'
                 ' --recursive --signal=SIGKILL -- ').format(SOURCE_DIRECTORY).split()
     # watchdog = 'tools/autoreload.sh'
-    worker_command = ('failmap celery worker --loglevel=info --pool=eventlet'
-                      ' --concurrency=1 --broker redis://localhost:{}/0').format(broker_port).split()
+    worker_command = ('failmap celery worker --loglevel={loglevel} --pool=eventlet'
+                      ' --concurrency=1 --broker redis://localhost:{}/0').format(broker_port, loglevel=loglevel).split()
 
     worker_process = subprocess.Popen(watchdog + worker_command, stdout=sys.stdout.buffer, stderr=sys.stderr.buffer)
 

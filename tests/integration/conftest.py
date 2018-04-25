@@ -39,10 +39,10 @@ def celery_worker(queues, request):
         'failmap',
         'celery',
         'worker',
-        '-l', 'info',
+        '-l', 'debug',
         '--pool', pool,
-        '--concurrency', '5',
-        '--queues', ','.join(queues)
+        '--concurrency', '1',
+        '--queues', ','.join(queues + ['default'])
     ]
     worker_env = dict(os.environ, WORKER_ROLE='default_ipv4')
 

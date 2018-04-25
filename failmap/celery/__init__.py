@@ -75,6 +75,9 @@ def debug_task(self, *args, **kwargs):
     log.info('Debug task')
     log.info('Args: {}, Kwargs: {}'.format(args, kwargs))
     log.info('Request: {!r}'.format(self.request))
+    if 'sleep' in kwargs:
+        time.sleep(int(kwargs.get('sleep')))
+    return kwargs.get('returns')
 
 
 @app.task(queue='default')

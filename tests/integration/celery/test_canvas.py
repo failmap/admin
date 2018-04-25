@@ -1,7 +1,7 @@
 """Test assumptions about task composition."""
 
 
-from celery import group
+from celery import chord, group
 
 from failmap.celery import debug_task
 
@@ -17,20 +17,50 @@ def test_chords(celery_app, celery_worker, queues):
     (multiple group/chord combinations in a group) works.
     """
 
-    task = group([
+    task = chord(group([
+        debug_task.si('get_ips1'),  # | debug_task.si("can_connect_ips"),  # | debug_task.si("connect_result"),
+        # debug_task.si('get_ips2'),  # | debug_task.si("can_connect_ips"),  # | debug_task.si("connect_result"),
+        # debug_task.si('get_ips'),  # | debug_task.si("can_connect_ips"),  # | debug_task.si("connect_result"),
+
+        debug_task.si('get_ips3') | group([
+            debug_task.si("store_url_ips_task"),
+            # debug_task.si("kill_url_task"),
+            # debug_task.si("revive_url_task"),
+        ]) | debug_task.si('collect'),
+
+        # group([debug_task.si('get_ips') | group([
+        #     debug_task.si("store_url_ips_task"),
+        #     debug_task.si("kill_url_task"),
+        #     debug_task.si("revive_url_task"),
+        # ])]),
+        # debug_task.si('get_ips') | debug_task.si("can_connect_ips"), debug_task.si("connect_result"),
+        # debug_task.si('get_ips') | debug_task.si("can_connect_ips"), debug_task.si("connect_result"),
+
+    ]), body=debug_task.si("finish_onboarding", returns=True))
+
+    task2 = group([
+        debug_task.si('get_ips3') |
         group([
             debug_task.si("store_url_ips_task"),
-            debug_task.si("kill_url_task"),
-            debug_task.si("revive_url_task"),
-        ]) | debug_task.si("finish_onboarding"),
-        group([
-            debug_task.si("store_url_ips_task"),
-            debug_task.si("kill_url_task"),
-            debug_task.si("revive_url_task"),
-        ]) | debug_task.si("finish_onboarding"),
-    ])
-    print("Task:", task)
+            debug_task.si("kill_url_task")
+        ]) | debug_task.si('collect')
+    ]) | debug_task.si("finish_onboarding", returns=True)
+
+    # works
+    # task3 = chord(header=debug_task.si('get_ips3') | group([
+    #     debug_task.si("store_url_ips_task"),
+    #     debug_task.si("kill_url_task")
+    # ]) | debug_task.si('collect'), body=debug_task.si("finish_onboarding", returns=True))
+
+    print("Task :", task)
+    print("Task2:", task2)
+    # print("Task3:", task3)
     async_result = task.apply_async(queue=queues[0])
     result = async_result.get(timeout=TIMEOUT)
-    print("Result:", result)
+    print("Result :", result)
     assert result
+
+    async_result2 = task2.apply_async(queue=queues[0])
+    result2 = async_result2.get(timeout=TIMEOUT)
+    print("Result2:", result2)
+    assert result2

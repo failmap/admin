@@ -41,6 +41,7 @@ def celery_worker(queues, request):
         'worker',
         '-l', 'info',
         '--pool', pool,
+        '--concurrency', '5',
         '--queues', ','.join(queues)
     ]
     worker_env = dict(os.environ, WORKER_ROLE='default_ipv4')

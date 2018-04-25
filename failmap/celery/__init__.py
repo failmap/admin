@@ -3,6 +3,7 @@
 # http://oddbird.net/2017/03/20/serializing-things/
 # http://docs.celeryproject.org/en/latest/userguide/security.html
 
+import logging
 import os
 import time
 
@@ -11,6 +12,8 @@ from celery import Celery, Task
 from django.conf import settings
 
 from .worker import WORKER_QUEUE_CONFIGURATION
+
+log = logging.getLogger(__name__)
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "failmap.settings")
 
@@ -68,8 +71,10 @@ class ParentFailed(Exception):
 
 
 @app.task(queue='default', bind=True)
-def debug_task(self):
-    print('Request: {0!r}'.format(self.request))
+def debug_task(self, *args, **kwargs):
+    log.info('Debug task')
+    log.info('Args: {}, Kwargs: {}'.format(args, kwargs))
+    log.info('Request: {!r}'.format(self.request))
 
 
 @app.task(queue='default')

@@ -27,8 +27,8 @@ poetry = ${bin}/poetry
 app = ${bin}/${app_name}
 
 pysrcdirs = ${app_name}/ tests/
-pysrc = $(shell find ${pysrcdirs} -name *.py)
-shsrc = $(shell find * ! -path vendor\* -name *.sh)
+pysrc = $(shell find ${pysrcdirs} -name *.py 2>/dev/null)
+shsrc = $(shell find * ! -path vendor\* -name *.sh 2>/dev/null)
 
 .PHONY: ${commands} test check setup run fix autofix clean mrproper poetry test_integration
 
@@ -150,10 +150,10 @@ mrproper: clean
 
 # don't let poetry manage the virtualenv, we do it ourselves to make it deterministic
 poetry: ${poetry}
-poetry_version=0.12.15
+poetry_version=1.0.0a2
 ${poetry}: ${python}
 	# install poetry
-	${pip} install -q poetry==${poetry_version}
+	${pip} install -q --pre poetry==${poetry_version}
 
 ${python}:
 	@if ! command -v python3 &>/dev/null;then \
@@ -161,3 +161,8 @@ ${python}:
 	fi
 	# create virtualenv
 	python3 -mvenv ${VIRTUAL_ENV}
+
+# utility to only install dependencies, to improve docker cache and build speed
+deps: | poetry
+	${poetry} export -f requirements.txt ${poetry_args}
+	pip install -r requirements.txt

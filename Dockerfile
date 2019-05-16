@@ -34,18 +34,18 @@ RUN npm install --global osmtogeojson
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1
 # required because pip 19+ breaks pyproject.toml editable builds: https://github.com/pypa/pip/issues/6434
 ENV PIP_USE_PEP517=false
-RUN /usr/bin/pip3 install --upgrade poetry==0.12.15 virtualenv pip
-RUN virtualenv /pyenv
-ENV VIRTUAL_ENV = /pyenv
-ENV PATH=/pyenv/bin:$PATH
+ENV VIRTUAL_ENV=/pyenv
+ENV PATH /pyenv/bin:$PATH
 
-COPY pyproject.toml poetry.lock README.md /source/
-COPY websecmap/ /source/websecmap/
-
+# install dependencies seperately from app to allow use of Docker cache
+COPY Makefile pyproject.toml poetry.lock README.md /source/
 WORKDIR /source
+RUN make deps poetry_args=--extras=deploy
+
 # Install app and dependencies in a artifact-able directory
 # App is installed by linking source into virtualenv. This is against convention
 # but allows the source to be overwritten by a volume during development.
+COPY websecmap/ /source/websecmap/
 RUN poetry install -v --no-dev --extras deploy --develop websecmap
 WORKDIR /
 

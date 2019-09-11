@@ -132,6 +132,11 @@ build:
     - docker tag websecmap/websecmap:build websecmap/websecmap:$(cat version|tr + _)
     - docker push websecmap/websecmap:$(cat version|tr + _)
 
+    # also push image to gitlab registry for container scanning
+    - docker tag websecmap/websecmap:build $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG:$CI_COMMIT_SHA
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker push $CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG:$CI_COMMIT_SHA
+
   only:
     - master
     - tags
